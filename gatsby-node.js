@@ -3,23 +3,26 @@ const { createFilePath } = require(`gatsby-source-filesystem`)
 
 exports.onCreateNode = ({ node, getNode, actions }) => {
   const { createNodeField } = actions
-  if (node.internal.type === `MarkdownRemark`) {
-    const slug = createFilePath({ node, getNode, basePath: `pages` })
+
+  if (node.internal.type === `Mdx`) {
+    const slug = createFilePath({ node, getNode, basePath: `src/blog` })
     createNodeField({
       node,
       name: `slug`,
-      value: slug,
+      value: `/blog${slug}`,
     })
   }
 }
 
-exports.createPages = async ({ graphql, actions }) => {
+exports.createPages = async ({ graphql, actions, reporter }) => {
   const { createPage } = actions
+
   const result = await graphql(`
     query {
-      allMarkdownRemark {
+      allMdx {
         edges {
           node {
+            id
             fields {
               slug
             }
@@ -29,14 +32,19 @@ exports.createPages = async ({ graphql, actions }) => {
     }
   `)
 
-  result.data.allMarkdownRemark.edges.forEach(({ node }) => {
+  if (result.errors) {
+    reporter.panicOnBuild('🚨  ERROR: Loading "createPages" query')
+  }
+
+  result.data.allMdx.edges.forEach(({ node }) => {
     createPage({
       path: node.fields.slug,
-      component: path.resolve(`./src/templates/blog-post.tsx`),
+      component: path.resolve(`./src/components/blogpost/Blogpost.jsx`),
       context: {
         // Data passed to context is available
         // in page queries as GraphQL variables.
         slug: node.fields.slug,
+        id: node.id,
       },
     })
   })
